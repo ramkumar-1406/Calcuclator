@@ -1,0 +1,96 @@
+name: Summarize Commit and Update SharePoint
+
+on:
+  push:
+    branches:
+      - main # Or your desired branch
+
+jobs:
+  summarize-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2 # Fetch the previous commit to get a diff
+
+      - name: Get commit details and diff
+        id: get_commit_data
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          COMMIT_SHA=$(git rev-parse HEAD)
+          # Get the diff between the current commit and its parent
+          CHANGES=$(git diff HEAD~1 HEAD)
+
+          echo "Commit Message: $COMMIT_MESSAGE"
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "Changes:\n$CHANGES"
+
+          # Prepare data for Gemini API (you might want to escape this properly)
+          # For simplicity here, we're passing it directly.
+          # In a real scenario, consider JSON encoding for the API call.
+          echo "::set-output name=commit_message::$(echo -n "$COMMIT_MESSAGE" | sed 's/"/\\"/g')"
+          echo "::set-output name=commit_sha::$COMMIT_SHA"
+          echo "::set-output name=code_changes::$(echo -n "$CHANGES" | sed 's/"/\\"/g')"
+
+      - name: Call Gemini API for summarization
+        id: call_gemini
+        run: |
+          # This is a placeholder. You'll replace this with your actual API call.
+          # You might use curl, or a dedicated action if available.
+          # You need to pass ${{ steps.get_commit_data.outputs.commit_message }}
+          # and ${{ steps.get_commit_data.outputs.code_changes }} to your Gemini API.
+          # Make sure to handle authentication (API_KEY) securely.
+
+          # Example using curl (replace with actual Gemini endpoint and payload)
+          GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+          COMMIT_MESSAGE="${{ steps.get_commit_data.outputs.commit_message }}"
+          CODE_CHANGES="${{ steps.get_commit_data.outputs.code_changes }}"
+
+          # Construct the prompt for Gemini
+          PROMPT="Summarize the following code changes and commit message concisely, focusing on the purpose and impact:\n\nCommit Message: $COMMIT_MESSAGE\n\nCode Changes:\n$CODE_CHANGES"
+
+          # Replace with your actual Gemini API endpoint and request body
+          # This is a conceptual example for passing content to Gemini
+          GEMINI_RESPONSE=$(curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "contents": [
+                {
+                  "parts": [
+                    {
+                      "text": "'"$PROMPT"'"
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          echo "Gemini Raw Response: $GEMINI_RESPONSE"
+
+          # Parse the response (this will depend on Gemini's actual JSON structure)
+          # Example: Extracting the first part of the text output
+          SUMMARIZED_TEXT=$(echo "$GEMINI_RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+
+          echo "::set-output name=summary::$SUMMARIZED_TEXT"
+          echo "Summarized by Gemini:\n$SUMMARIZED_TEXT"
+
+      - name: Send summarized text to SharePoint intermediary service
+        run: |
+          # This step will call your custom API or Azure Function/Lambda
+          # which handles the SharePoint interaction.
+          # Pass the summarized text and other relevant commit info.
+          SHAREPOINT_API_ENDPOINT="${{ secrets.SHAREPOINT_API_ENDPOINT }}"
+          COMMIT_SHA="${{ steps.get_commit_data.outputs.commit_sha }}"
+          SUMMARY="${{ steps.call_gemini.outputs.summary }}"
+
+          curl -X POST "$SHAREPOINT_API_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "commitSha": "'"$COMMIT_SHA"'",
+              "summary": "'"$SUMMARY"'"
+            }'
+        env:
+          # If your intermediary service requires authentication
+          SHAREPOINT_SERVICE_API_KEY: ${{ secrets.SHAREPOINT_SERVICE_API_KEY }}
