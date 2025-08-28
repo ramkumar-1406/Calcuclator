@@ -1,37 +1,37 @@
-# Simple Calculator in Python
+import math
 
-def add(x, y):
-    return x + y
+def calculator():
+    print("🔹 Advanced Calculator 🔹")
+    print("Type 'exit' to quit")
+    print("Available functions: +, -, *, /, %, **, sqrt, sin, cos, tan, log, log10, factorial")
+    print("Example: 2 + 3 * sqrt(16)")
 
-def subtract(x, y):
-    return x - y
+    while True:
+        expr = input("\nEnter expression: ")
 
-def multiply(x, y):
-    return x * y
+        if expr.lower() in ["exit", "quit", "q"]:
+            print("Exiting Calculator. Goodbye! 👋")
+            break
 
-def divide(x, y):
-    if y == 0:
-        return "Error! Division by zero."
-    return x / y
+        try:
+            # Allow math functions
+            result = eval(expr, {"__builtins__": None}, {
+                "sqrt": math.sqrt,
+                "sin": math.sin,
+                "cos": math.cos,
+                "tan": math.tan,
+                "log": math.log,      # natural log
+                "log10": math.log10,  # base-10 log
+                "pi": math.pi,
+                "e": math.e,
+                "factorial": math.factorial,
+                "pow": math.pow
+            })
+            print("Result:", result)
 
-print("Select operation:")
-print("1. Add")
-print("2. Subtract")
-print("3. Multiply")
-print("4. Divide")
+        except Exception as e:
+            print("❌ Error:", e)
 
-choice = input("Enter choice (1/2/3/4): ")
 
-num1 = float(input("Enter first number: "))
-num2 = float(input("Enter second number: "))
-
-if choice == '1':
-    print("Result:", add(num1, num2))
-elif choice == '2':
-    print("Result:", subtract(num1, num2))
-elif choice == '3':
-    print("Result:", multiply(num1, num2))
-elif choice == '4':
-    print("Result:", divide(num1, num2))
-else:
-    print("Invalid input")
+if __name__ == "__main__":
+    calculator()
